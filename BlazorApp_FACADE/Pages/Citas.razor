@@ -1,0 +1,128 @@
+﻿@page "/citas"
+@using BlazorApp_FACADE.Services
+@using BlazorApp_FACADE.Models
+@inject CitasFacadeService CitasFacade
+
+<h3>Gestión de Citas</h3>
+
+<!-- Formulario para agregar o editar cita -->
+<EditForm Model="@CitaActual" OnValidSubmit="GuardarCita">
+    <DataAnnotationsValidator />
+    <div class="mb-3">
+        <label>Paciente</label>
+        <select class="form-control" @bind="CitaActual.PacienteId">
+            <option value="0">Seleccione un paciente</option>
+            @foreach (var paciente in ListaPacientes)
+            {
+                <option value="@paciente.Id">@paciente.Nombre</option>
+            }
+        </select>
+    </div>
+    <div class="mb-3">
+        <label>Médico</label>
+        <select class="form-control" @bind="CitaActual.MedicoId">
+            <option value="0">Seleccione un médico</option>
+            @foreach (var medico in ListaMedicos)
+            {
+                <option value="@medico.Id">@medico.Nombre - @medico.Especialidad</option>
+            }
+        </select>
+    </div>
+    <div class="mb-3">
+        <label>Fecha</label>
+        <InputDate class="form-control" @bind-Value="CitaActual.Fecha" />
+    </div>
+    <div class="mb-3">
+        <label>Estado</label>
+        <select class="form-control" @bind="CitaActual.Estado">
+            <option value="Pendiente">Pendiente</option>
+            <option value="Confirmada">Confirmada</option>
+            <option value="Cancelada">Cancelada</option>
+        </select>
+    </div>
+    <button type="submit" class="btn btn-primary">Guardar</button>
+    <button type="button" class="btn btn-secondary" @onclick="CancelarEdicion">Cancelar</button>
+</EditForm>
+
+<hr />
+
+<!-- Tabla de citas -->
+<table class="table table-bordered">
+    <thead>
+        <tr>
+            <th>Paciente</th>
+            <th>Médico</th>
+            <th>Fecha</th>
+            <th>Estado</th>
+            <th>Acciones</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var cita in ListaCitas)
+        {
+            <tr>
+                <td>@(ListaPacientes.FirstOrDefault(p => p.Id == cita.PacienteId)?.Nombre ?? "Desconocido")</td>
+                <td>@(ListaMedicos.FirstOrDefault(m => m.Id == cita.MedicoId)?.Nombre ?? "Desconocido")</td>
+                <td>@cita.Fecha.ToString("yyyy-MM-dd")</td>
+                <td>@cita.Estado</td>
+                <td>
+                    <button class="btn btn-warning" @onclick="() => EditarCita(cita)">Editar</button>
+                    <button class="btn btn-danger" @onclick="() => EliminarCita(cita.Id)">Eliminar</button>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    private List<Cita> ListaCitas = new List<Cita>();
+    private List<Paciente> ListaPacientes = new List<Paciente>();
+    private List<Medico> ListaMedicos = new List<Medico>();
+    private Cita CitaActual = new Cita();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarDatos();
+    }
+
+    private async Task CargarDatos()
+    {
+        ListaCitas = await CitasFacade.ObtenerCitas();
+        ListaPacientes = await CitasFacade.ObtenerPacientes();
+        ListaMedicos = await CitasFacade.ObtenerMedicos();
+    }
+
+    private async Task GuardarCita()
+    {
+        if (CitaActual.Id == 0)
+            await CitasFacade.AgregarCita(CitaActual);
+        else
+            await CitasFacade.EditarCita(CitaActual);
+
+        CitaActual = new Cita();
+        await CargarDatos();
+    }
+
+    private void EditarCita(Cita cita)
+    {
+        CitaActual = new Cita
+            {
+                Id = cita.Id,
+                PacienteId = cita.PacienteId,
+                MedicoId = cita.MedicoId,
+                Fecha = cita.Fecha,
+                Estado = cita.Estado
+            };
+    }
+
+    private async Task EliminarCita(int id)
+    {
+        await CitasFacade.EliminarCita(id);
+        await CargarDatos();
+    }
+
+    private void CancelarEdicion()
+    {
+        CitaActual = new Cita();
+    }
+}

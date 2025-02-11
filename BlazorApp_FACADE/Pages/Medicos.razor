@@ -1,0 +1,99 @@
+﻿@page "/medicos"
+@using BlazorApp_FACADE.Services
+@using BlazorApp_FACADE.Models
+@inject CitasFacadeService CitasFacade
+
+<h3>Gestión de Médicos</h3>
+
+<EditForm Model="@MedicoActual" OnValidSubmit="GuardarMedico">
+    <DataAnnotationsValidator />
+    <div class="mb-3">
+        <label>Nombre</label>
+        <InputText class="form-control" @bind-Value="MedicoActual.Nombre" />
+    </div>
+    <div class="mb-3">
+        <label>Especialidad</label>
+        <InputText class="form-control" @bind-Value="MedicoActual.Especialidad" />
+    </div>
+    <div class="mb-3">
+        <label>Teléfono</label>
+        <InputText class="form-control" @bind-Value="MedicoActual.Telefono" />
+    </div>
+    <button type="submit" class="btn btn-primary">Guardar</button>
+    <button type="button" class="btn btn-secondary" @onclick="CancelarEdicion">Cancelar</button>
+</EditForm>
+
+<hr />
+
+<table class="table table-bordered">
+    <thead>
+        <tr>
+            <th>Nombre</th>
+            <th>Especialidad</th>
+            <th>Teléfono</th>
+            <th>Acciones</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var medico in ListaMedicos)
+        {
+            <tr>
+                <td>@medico.Nombre</td>
+                <td>@medico.Especialidad</td>
+                <td>@medico.Telefono</td>
+                <td>
+                    <button class="btn btn-warning" @onclick="() => EditarMedico(medico)">Editar</button>
+                    <button class="btn btn-danger" @onclick="() => EliminarMedico(medico.Id)">Eliminar</button>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    private List<Medico> ListaMedicos = new List<Medico>();
+    private Medico MedicoActual = new Medico();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarMedicos();
+    }
+
+    private async Task CargarMedicos()
+    {
+        ListaMedicos = await CitasFacade.ObtenerMedicos();
+    }
+
+    private async Task GuardarMedico()
+    {
+        if (MedicoActual.Id == 0)
+            await CitasFacade.AgregarMedico(MedicoActual);
+        else
+            await CitasFacade.EditarMedico(MedicoActual);
+
+        MedicoActual = new Medico();
+        await CargarMedicos();
+    }
+
+    private void EditarMedico(Medico medico)
+    {
+        MedicoActual = new Medico
+            {
+                Id = medico.Id,
+                Nombre = medico.Nombre,
+                Especialidad = medico.Especialidad,
+                Telefono = medico.Telefono
+            };
+    }
+
+    private async Task EliminarMedico(int id)
+    {
+        await CitasFacade.EliminarMedico(id);
+        await CargarMedicos();
+    }
+
+    private void CancelarEdicion()
+    {
+        MedicoActual = new Medico();
+    }
+}

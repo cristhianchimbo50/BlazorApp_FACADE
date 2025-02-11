@@ -1,0 +1,115 @@
+﻿@page "/pacientes"
+@using BlazorApp_FACADE.Services
+@using BlazorApp_FACADE.Models
+@inject CitasFacadeService CitasFacade
+
+<h3>Gestión de Pacientes</h3>
+
+<!-- Formulario para agregar o editar paciente -->
+<EditForm Model="@PacienteActual" OnValidSubmit="GuardarPaciente">
+    <DataAnnotationsValidator />
+    <div class="mb-3">
+        <label>Nombre</label>
+        <InputText class="form-control" @bind-Value="PacienteActual.Nombre" />
+    </div>
+    <div class="mb-3">
+        <label>Cédula</label>
+        <InputText class="form-control" @bind-Value="PacienteActual.Cedula" />
+    </div>
+    <div class="mb-3">
+        <label>Edad</label>
+        <InputNumber class="form-control" @bind-Value="PacienteActual.Edad" />
+    </div>
+    <div class="mb-3">
+        <label>Teléfono</label>
+        <InputText class="form-control" @bind-Value="PacienteActual.Telefono" />
+    </div>
+    <div class="mb-3">
+        <label>Correo</label>
+        <InputText class="form-control" @bind-Value="PacienteActual.Correo" />
+    </div>
+    <button type="submit" class="btn btn-primary">Guardar</button>
+    <button type="button" class="btn btn-secondary" @onclick="CancelarEdicion">Cancelar</button>
+</EditForm>
+
+<hr />
+
+<!-- Tabla de pacientes -->
+<table class="table table-bordered">
+    <thead>
+        <tr>
+            <th>Nombre</th>
+            <th>Cédula</th>
+            <th>Edad</th>
+            <th>Teléfono</th>
+            <th>Correo</th>
+            <th>Acciones</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var paciente in ListaPacientes)
+        {
+            <tr>
+                <td>@paciente.Nombre</td>
+                <td>@paciente.Cedula</td>
+                <td>@paciente.Edad</td>
+                <td>@paciente.Telefono</td>
+                <td>@paciente.Correo</td>
+                <td>
+                    <button class="btn btn-warning" @onclick="() => EditarPaciente(paciente)">Editar</button>
+                    <button class="btn btn-danger" @onclick="() => EliminarPaciente(paciente.Id)">Eliminar</button>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    private List<Paciente> ListaPacientes = new List<Paciente>();
+    private Paciente PacienteActual = new Paciente();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarPacientes();
+    }
+
+    private async Task CargarPacientes()
+    {
+        ListaPacientes = await CitasFacade.ObtenerPacientes();
+    }
+
+    private async Task GuardarPaciente()
+    {
+        if (PacienteActual.Id == 0)
+            await CitasFacade.AgregarPaciente(PacienteActual);
+        else
+            await CitasFacade.EditarPaciente(PacienteActual);
+
+        PacienteActual = new Paciente();
+        await CargarPacientes();
+    }
+
+    private void EditarPaciente(Paciente paciente)
+    {
+        PacienteActual = new Paciente
+            {
+                Id = paciente.Id,
+                Nombre = paciente.Nombre,
+                Cedula = paciente.Cedula,
+                Edad = paciente.Edad,
+                Telefono = paciente.Telefono,
+                Correo = paciente.Correo
+            };
+    }
+
+    private async Task EliminarPaciente(int id)
+    {
+        await CitasFacade.EliminarPaciente(id);
+        await CargarPacientes();
+    }
+
+    private void CancelarEdicion()
+    {
+        PacienteActual = new Paciente();
+    }
+}
