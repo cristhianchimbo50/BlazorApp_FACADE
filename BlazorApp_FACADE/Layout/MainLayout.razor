@@ -1,60 +1,13 @@
 ﻿@inherits LayoutComponentBase
-
-<div class="app-container">
-    <nav class="sidebar">
-        <div class="sidebar-header">
-            <h2>BlazorApp</h2>
-        </div>
-        <ul class="nav-links">
-            <li><NavLink href="/" class="nav-link">Inicio</NavLink></li>
-            <li><NavLink href="/pacientes" class="nav-link">👨‍⚕️ Pacientes</NavLink></li>
-            <li><NavLink href="/medicos" class="nav-link">🩺 Médicos</NavLink></li>
-            <li><NavLink href="/citas" class="nav-link">📅 Citas</NavLink></li>
-        </ul>
-    </nav>
-
-    <div class="content">
-        <div class="container">
-            @Body
-        </div>
+<div class="page">
+    <div class="sidebar">
+        <NavMenu />
     </div>
-</div>
 
-<style>
-    .app-container {
-        display: flex;
-        height: 100vh;
-    }
-    .sidebar {
-        width: 250px;
-        background: #0074D9;
-        padding: 20px;
-        color: white;
-    }
-    .sidebar-header {
-        font-size: 22px;
-        font-weight: bold;
-        text-align: center;
-        margin-bottom: 20px;
-    }
-    .nav-links {
-        list-style: none;
-        padding: 0;
-    }
-    .nav-link {
-        display: block;
-        padding: 10px;
-        margin: 5px 0;
-        color: white;
-        text-decoration: none;
-        border-radius: 5px;
-    }
-    .nav-link:hover {
-        background: rgba(255, 255, 255, 0.2);
-    }
-    .content {
-        flex-grow: 1;
-        padding: 20px;
-        background: #f4f4f9;
-    }
-</style>
+    <main>
+
+        <article class="content px-4">
+            @Body
+        </article>
+    </main>
+</div>

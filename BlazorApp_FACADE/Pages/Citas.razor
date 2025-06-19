@@ -1,128 +1,240 @@
 ﻿@page "/citas"
-@using BlazorApp_FACADE.Services
 @using BlazorApp_FACADE.Models
-@inject CitasFacadeService CitasFacade
+@using BlazorApp_FACADE.Services
+@inject ICitaService CitaService
+@inject IMedicoService MedicoService
+@inject IPacienteService PacienteService
+@inject IServicioService ServicioService
+@inject IJSRuntime JS
+@inject NavigationManager Navigation
 
 <h3>Gestión de Citas</h3>
 
-<!-- Formulario para agregar o editar cita -->
-<EditForm Model="@CitaActual" OnValidSubmit="GuardarCita">
-    <DataAnnotationsValidator />
-    <div class="mb-3">
-        <label>Paciente</label>
-        <select class="form-control" @bind="CitaActual.PacienteId">
-            <option value="0">Seleccione un paciente</option>
-            @foreach (var paciente in ListaPacientes)
-            {
-                <option value="@paciente.Id">@paciente.Nombre</option>
-            }
-        </select>
-    </div>
-    <div class="mb-3">
-        <label>Médico</label>
-        <select class="form-control" @bind="CitaActual.MedicoId">
-            <option value="0">Seleccione un médico</option>
-            @foreach (var medico in ListaMedicos)
-            {
-                <option value="@medico.Id">@medico.Nombre - @medico.Especialidad</option>
-            }
-        </select>
-    </div>
-    <div class="mb-3">
-        <label>Fecha</label>
-        <InputDate class="form-control" @bind-Value="CitaActual.Fecha" />
-    </div>
-    <div class="mb-3">
-        <label>Estado</label>
-        <select class="form-control" @bind="CitaActual.Estado">
-            <option value="Pendiente">Pendiente</option>
-            <option value="Confirmada">Confirmada</option>
-            <option value="Cancelada">Cancelada</option>
-        </select>
-    </div>
-    <button type="submit" class="btn btn-primary">Guardar</button>
-    <button type="button" class="btn btn-secondary" @onclick="CancelarEdicion">Cancelar</button>
-</EditForm>
+<button class="btn btn-success mb-3" @onclick="MostrarModal">Nueva Cita</button>
 
-<hr />
-
-<!-- Tabla de citas -->
-<table class="table table-bordered">
-    <thead>
-        <tr>
-            <th>Paciente</th>
-            <th>Médico</th>
-            <th>Fecha</th>
-            <th>Estado</th>
-            <th>Acciones</th>
-        </tr>
-    </thead>
-    <tbody>
-        @foreach (var cita in ListaCitas)
-        {
+@if (citas.Count == 0)
+{
+    <p>No hay citas registradas.</p>
+}
+else
+{
+    <table class="table table-striped">
+        <thead>
             <tr>
-                <td>@(ListaPacientes.FirstOrDefault(p => p.Id == cita.PacienteId)?.Nombre ?? "Desconocido")</td>
-                <td>@(ListaMedicos.FirstOrDefault(m => m.Id == cita.MedicoId)?.Nombre ?? "Desconocido")</td>
-                <td>@cita.Fecha.ToString("yyyy-MM-dd")</td>
-                <td>@cita.Estado</td>
-                <td>
-                    <button class="btn btn-warning" @onclick="() => EditarCita(cita)">Editar</button>
-                    <button class="btn btn-danger" @onclick="() => EliminarCita(cita.Id)">Eliminar</button>
-                </td>
+                <th>Fecha</th>
+                <th>Hora</th>
+                <th>Paciente</th>
+                <th>Médico</th>
+                <th>Servicio</th>
+                <th>Estado</th>
+                <th>Acciones</th>
             </tr>
-        }
-    </tbody>
-</table>
+        </thead>
+        <tbody>
+            @foreach (var cita in citas)
+            {
+                <tr>
+                    <td>@cita.Fecha.ToShortDateString()</td>
+                    <td>@(cita.Hora.HasValue? DateTime.Today.Add(cita.Hora.Value).ToString("hh\\:mm tt") : "-")</td>
+                    <td>@cita.Paciente?.Nombre</td>
+                    <td>@cita.Medico?.Nombre</td>
+                    <td>@cita.Servicio?.Nombre</td>
+                    <td>@cita.Estado</td>
+                    <td>
+                        <button class="btn btn-sm btn-primary me-1" @onclick="@(() => EditarCita(cita))">Editar</button>
+                        <button class="btn btn-sm btn-danger" @onclick="@(() => EliminarCita(cita.Id))">Eliminar</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+<!-- Modal -->
+<div class="modal fade @(modalVisible ? "show d-block" : "")" tabindex="-1" style="background-color: rgba(0,0,0,0.4);">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <EditForm Model="@CitaActual" OnValidSubmit="GuardarCita">
+                <div class="modal-header">
+                    <h5 class="modal-title">@(CitaActual.Id == 0 ? "Nueva Cita" : "Editar Cita")</h5>
+                    <button type="button" class="btn-close" @onclick="CerrarModal"></button>
+                </div>
+                <div class="modal-body">
+                    <DataAnnotationsValidator />
+                    <ValidationSummary />
+
+                    <div class="mb-3">
+                        <label>Fecha</label>
+                        <InputDate class="form-control" @bind-Value="CitaActual.Fecha" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label>Hora</label>
+                        <input type="time" class="form-control"
+                               value="@HoraString"
+                               @oninput="OnHoraChanged" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label>Paciente</label>
+                        <InputSelect class="form-control" @bind-Value="CitaActual.PacienteId">
+                            <option value="">-- Seleccione --</option>
+                            @foreach (var p in pacientes)
+                            {
+                                <option value="@p.Id">@p.Nombre</option>
+                            }
+                        </InputSelect>
+                    </div>
+
+                    <div class="mb-3">
+                        <label>Médico</label>
+                        <InputSelect class="form-control" @bind-Value="CitaActual.MedicoId">
+                            <option value="">-- Seleccione --</option>
+                            @foreach (var m in medicos)
+                            {
+                                <option value="@m.Id">@m.Nombre</option>
+                            }
+                        </InputSelect>
+                    </div>
+
+                    <div class="mb-3">
+                        <label>Servicio</label>
+                        <InputSelect class="form-control" @bind-Value="CitaActual.ServicioId">
+                            <option value="">-- Seleccione --</option>
+                            @foreach (var s in servicios)
+                            {
+                                <option value="@s.Id">@s.Nombre</option>
+                            }
+                        </InputSelect>
+                    </div>
+
+                    <div class="mb-3">
+                        <label>Estado</label>
+                        <InputSelect class="form-control" @bind-Value="CitaActual.Estado">
+                            <option value="Pendiente">Pendiente</option>
+                            <option value="Confirmada">Confirmada</option>
+                            <option value="Cancelada">Cancelada</option>
+                        </InputSelect>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-primary" type="submit">Guardar</button>
+                    <button class="btn btn-secondary" type="button" @onclick="CerrarModal">Cancelar</button>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+</div>
 
 @code {
-    private List<Cita> ListaCitas = new List<Cita>();
-    private List<Paciente> ListaPacientes = new List<Paciente>();
-    private List<Medico> ListaMedicos = new List<Medico>();
-    private Cita CitaActual = new Cita();
+    private List<Cita> citas = new();
+    private List<Medico> medicos = new();
+    private List<Paciente> pacientes = new();
+    private List<Servicio> servicios = new();
+    private Cita CitaActual = new();
+    private bool modalVisible = false;
+
+    private string HoraInput
+    {
+        get => CitaActual.Hora.HasValue ? DateTime.Today.Add(CitaActual.Hora.Value).ToString("HH:mm") : "";
+        set => CitaActual.Hora = TimeSpan.TryParse(value, out var t) ? t : null;
+    }
 
     protected override async Task OnInitializedAsync()
     {
-        await CargarDatos();
+        await CargarTodo();
     }
 
-    private async Task CargarDatos()
+    private async Task CargarTodo()
     {
-        ListaCitas = await CitasFacade.ObtenerCitas();
-        ListaPacientes = await CitasFacade.ObtenerPacientes();
-        ListaMedicos = await CitasFacade.ObtenerMedicos();
+        citas = await CitaService.ObtenerCitas();
+        medicos = await MedicoService.ObtenerMedicos();
+        pacientes = await PacienteService.ObtenerPacientes();
+        servicios = await ServicioService.ObtenerServicios();
     }
 
-    private async Task GuardarCita()
+    private void MostrarModal()
     {
-        if (CitaActual.Id == 0)
-            await CitasFacade.AgregarCita(CitaActual);
-        else
-            await CitasFacade.EditarCita(CitaActual);
-
-        CitaActual = new Cita();
-        await CargarDatos();
+        CitaActual = new Cita
+        {
+            Fecha = DateTime.Today,
+            Hora = new TimeSpan(8, 0, 0),
+            Estado = "Pendiente"
+        };
+        modalVisible = true;
     }
 
     private void EditarCita(Cita cita)
     {
         CitaActual = new Cita
-            {
-                Id = cita.Id,
-                PacienteId = cita.PacienteId,
-                MedicoId = cita.MedicoId,
-                Fecha = cita.Fecha,
-                Estado = cita.Estado
-            };
+        {
+            Id = cita.Id,
+            Fecha = cita.Fecha,
+            Hora = cita.Hora,
+            Estado = cita.Estado,
+            MedicoId = cita.MedicoId,
+            PacienteId = cita.PacienteId,
+            ServicioId = cita.ServicioId
+        };
+        modalVisible = true;
+    }
+
+    private void CerrarModal()
+    {
+        modalVisible = false;
+    }
+
+    private async Task GuardarCita()
+    {
+        bool exito = CitaActual.Id == 0
+            ? await CitaService.AgregarCita(CitaActual)
+            : await CitaService.EditarCita(CitaActual);
+
+        if (exito)
+        {
+            await JS.InvokeVoidAsync("alert", "Cita guardada correctamente.");
+            modalVisible = false;
+            await CargarTodo();
+        }
+        else
+        {
+            await JS.InvokeVoidAsync("alert", "Error al guardar la cita.");
+        }
     }
 
     private async Task EliminarCita(int id)
     {
-        await CitasFacade.EliminarCita(id);
-        await CargarDatos();
+        if (await JS.InvokeAsync<bool>("confirm", "¿Desea eliminar esta cita?"))
+        {
+            bool exito = await CitaService.EliminarCita(id);
+            if (exito)
+            {
+                await CargarTodo();
+                await JS.InvokeVoidAsync("alert", "Cita eliminada.");
+            }
+            else
+            {
+                await JS.InvokeVoidAsync("alert", "Error al eliminar la cita.");
+            }
+        }
     }
 
-    private void CancelarEdicion()
+    private string HoraString
     {
-        CitaActual = new Cita();
+        get => CitaActual.Hora.HasValue ? CitaActual.Hora.Value.ToString(@"hh\:mm") : "";
+        set
+        {
+            if (TimeSpan.TryParse(value, out var hora))
+                CitaActual.Hora = hora;
+            else
+                CitaActual.Hora = null;
+        }
     }
+
+    private void OnHoraChanged(ChangeEventArgs e)
+    {
+        HoraString = e?.Value?.ToString() ?? "";
+    }
+
+
 }

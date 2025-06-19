@@ -1,0 +1,156 @@
+﻿@page "/servicios"
+@using BlazorApp_FACADE.Models
+@using BlazorApp_FACADE.Services
+@inject IServicioService ServicioService
+@inject IJSRuntime JS
+
+<h3>Gestión de Servicios Médicos</h3>
+
+<button class="btn btn-success mb-3" @onclick="MostrarModal">Nuevo Servicio</button>
+
+@if (servicios.Count == 0)
+{
+    <p>No hay servicios registrados.</p>
+}
+else
+{
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Nombre</th>
+                <th>Descripción</th>
+                <th>Precio</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var servicio in servicios)
+            {
+                <tr>
+                    <td>@servicio.Nombre</td>
+                    <td>@servicio.Descripcion</td>
+                    <td>$ @servicio.Precio</td>
+                    <td>
+                        <button class="btn btn-sm btn-primary me-1" @onclick="() => EditarServicio(servicio)">Editar</button>
+                        <button class="btn btn-sm btn-danger" @onclick="() => EliminarServicio(servicio.Id)">Eliminar</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+<!-- Modal -->
+<div class="modal fade @(modalVisible ? "show d-block" : "")" tabindex="-1" style="background-color: rgba(0,0,0,0.4);">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <EditForm Model="@ServicioActual" OnValidSubmit="GuardarServicio">
+                <div class="modal-header">
+                    <h5 class="modal-title">@((ServicioActual.Id == 0) ? "Nuevo Servicio" : "Editar Servicio")</h5>
+                    <button type="button" class="btn-close" @onclick="CerrarModal"></button>
+                </div>
+                <div class="modal-body">
+                    <DataAnnotationsValidator />
+                    <ValidationSummary />
+
+                    <div class="mb-3">
+                        <label>Nombre</label>
+                        <InputText class="form-control" @bind-Value="ServicioActual.Nombre" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label>Descripción</label>
+                        <InputTextArea class="form-control" @bind-Value="ServicioActual.Descripcion" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label>Precio</label>
+                        <InputNumber class="form-control" @bind-Value="ServicioActual.Precio" />
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-primary" type="submit">Guardar</button>
+                    <button class="btn btn-secondary" type="button" @onclick="CerrarModal">Cancelar</button>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<Servicio> servicios = new();
+    private Servicio ServicioActual = new();
+    private bool modalVisible = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarServicios();
+    }
+
+    private async Task CargarServicios()
+    {
+        servicios = await ServicioService.ObtenerServicios();
+    }
+
+    private void MostrarModal()
+    {
+        ServicioActual = new Servicio();
+        modalVisible = true;
+    }
+
+    private void EditarServicio(Servicio servicio)
+    {
+        ServicioActual = new Servicio
+        {
+            Id = servicio.Id,
+            Nombre = servicio.Nombre,
+            Descripcion = servicio.Descripcion,
+            Precio = servicio.Precio
+        };
+        modalVisible = true;
+    }
+
+    private void CerrarModal()
+    {
+        modalVisible = false;
+    }
+
+    private async Task GuardarServicio()
+    {
+        bool exito;
+
+        if (ServicioActual.Id == 0)
+            exito = await ServicioService.AgregarServicio(ServicioActual);
+        else
+            exito = await ServicioService.EditarServicio(ServicioActual);
+
+        if (exito)
+        {
+            await JS.InvokeVoidAsync("alert", "Servicio guardado correctamente.");
+            modalVisible = false;
+            await CargarServicios();
+        }
+        else
+        {
+            await JS.InvokeVoidAsync("alert", "Error al guardar el servicio.");
+        }
+    }
+
+    private async Task EliminarServicio(int id)
+    {
+        var confirmar = await JS.InvokeAsync<bool>("confirm", "¿Desea eliminar este servicio?");
+        if (confirmar)
+        {
+            var exito = await ServicioService.EliminarServicio(id);
+            if (exito)
+            {
+                await JS.InvokeVoidAsync("alert", "Servicio eliminado.");
+                await CargarServicios();
+            }
+            else
+            {
+                await JS.InvokeVoidAsync("alert", "Error al eliminar el servicio.");
+            }
+        }
+    }
+}

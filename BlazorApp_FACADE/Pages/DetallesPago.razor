@@ -1,0 +1,51 @@
+﻿@page "/detalles-pago/{PagoId:int}"
+@using BlazorApp_FACADE.Models
+@using BlazorApp_FACADE.Services
+@inject IDetallePagoService DetallePagoService
+@inject NavigationManager Navigation
+
+<h3>Detalles del Pago @PagoId</h3>
+
+@if (detalles.Count == 0)
+{
+    <p>No hay detalles asociados a este pago.</p>
+}
+else
+{
+    <table class="table table-bordered">
+        <thead>
+            <tr>
+                <th>Servicio</th>
+                <th>Cantidad</th>
+                <th>Subtotal</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var d in detalles)
+            {
+                <tr>
+                    <td>@d.NombreServicio</td>
+                    <td>@d.Cantidad</td>
+                    <td>$@d.Subtotal</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+<button class="btn btn-secondary" @onclick="Volver">Volver</button>
+
+@code {
+    [Parameter] public int PagoId { get; set; }
+    private List<DetallePago> detalles = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        detalles = await DetallePagoService.ObtenerDetallesPorPago(PagoId);
+    }
+
+    private void Volver()
+    {
+        Navigation.NavigateTo("/pagos");
+    }
+}

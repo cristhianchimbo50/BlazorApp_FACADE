@@ -1,0 +1,154 @@
+﻿@page "/pagos"
+@using BlazorApp_FACADE.Models
+@using BlazorApp_FACADE.Services
+
+@inject IPagoService PagoService
+@inject ICitaService CitaService
+@inject IJSRuntime JS
+@inject NavigationManager Navigation
+
+<h3>Gestión de Pagos</h3>
+
+<button class="btn btn-success mb-3" @onclick="MostrarModal">Nuevo Pago</button>
+
+@if (pagos.Count == 0)
+{
+    <p>No hay pagos registrados.</p>
+}
+else
+{
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Cita</th>
+                <th>Comprobante</th>
+                <th>Método</th>
+                <th>Fecha</th>
+                <th>Monto</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var pago in pagos)
+            {
+                <tr>
+                    <td>@pago.CitaId</td>
+                    <td>@pago.NumeroComprobante</td>
+                    <td>@pago.Metodo</td>
+                    <td>@pago.FechaPago.ToShortDateString()</td>
+                    <td>$@pago.Monto</td>
+                    <td>
+                        <button class="btn btn-sm btn-primary me-1" @onclick="() => VerDetalles(pago.Id)">Detalles</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+<!-- Modal -->
+<div class="modal fade @(modalVisible ? "show d-block" : "")" tabindex="-1" style="background-color: rgba(0,0,0,0.4);">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <EditForm Model="@PagoActual" OnValidSubmit="GuardarPago">
+                <div class="modal-header">
+                    <h5 class="modal-title">Registrar Pago</h5>
+                    <button type="button" class="btn-close" @onclick="CerrarModal"></button>
+                </div>
+                <div class="modal-body">
+                    <DataAnnotationsValidator />
+                    <ValidationSummary />
+
+                    <div class="mb-3">
+                        <label>Cita</label>
+                        <InputSelect class="form-control" @bind-Value="PagoActual.CitaId">
+                            <option value="">-- Seleccione --</option>
+                            @foreach (var c in citas)
+                            {
+                                <option value="@c.Id">Cita #@c.Id - @c.Fecha.ToShortDateString()</option>
+                            }
+                        </InputSelect>
+                    </div>
+
+                    <div class="mb-3">
+                        <label>Método de Pago</label>
+                        <InputText class="form-control" @bind-Value="PagoActual.Metodo" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label>Tipo de Comprobante</label>
+                        <InputText class="form-control" @bind-Value="PagoActual.TipoComprobante" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label>Número de Comprobante</label>
+                        <InputText class="form-control" @bind-Value="PagoActual.NumeroComprobante" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label>Monto</label>
+                        <InputNumber class="form-control" @bind-Value="PagoActual.Monto" />
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-primary" type="submit">Guardar</button>
+                    <button class="btn btn-secondary" type="button" @onclick="CerrarModal">Cancelar</button>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<Pago> pagos = new();
+    private List<Cita> citas = new();
+    private Pago PagoActual = new();
+    private bool modalVisible = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarPagos();
+        citas = await CitaService.ObtenerCitas();
+    }
+
+    private async Task CargarPagos()
+    {
+        pagos = await PagoService.ObtenerPagos();
+    }
+
+    private void MostrarModal()
+    {
+        PagoActual = new Pago
+        {
+            FechaPago = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Utc),
+            Metodo = "Efectivo",
+            TipoComprobante = "Factura"
+        };
+        modalVisible = true;
+    }
+
+    private void CerrarModal()
+    {
+        modalVisible = false;
+    }
+
+    private async Task GuardarPago()
+    {
+        var exito = await PagoService.AgregarPago(PagoActual);
+        if (exito)
+        {
+            await JS.InvokeVoidAsync("alert", "Pago registrado.");
+            modalVisible = false;
+            await CargarPagos();
+        }
+        else
+        {
+            await JS.InvokeVoidAsync("alert", "Error al registrar el pago.");
+        }
+    }
+
+    private void VerDetalles(int pagoId)
+    {
+        Navigation.NavigateTo($"/detalles-pago/{pagoId}");
+    }
+}

@@ -1,58 +1,84 @@
 ﻿@page "/medicos"
-@using BlazorApp_FACADE.Services
 @using BlazorApp_FACADE.Models
-@inject CitasFacadeService CitasFacade
+@using BlazorApp_FACADE.Services
+@inject IMedicoService MedicoService
+@inject IJSRuntime JS
 
 <h3>Gestión de Médicos</h3>
 
-<EditForm Model="@MedicoActual" OnValidSubmit="GuardarMedico">
-    <DataAnnotationsValidator />
-    <div class="mb-3">
-        <label>Nombre</label>
-        <InputText class="form-control" @bind-Value="MedicoActual.Nombre" />
-    </div>
-    <div class="mb-3">
-        <label>Especialidad</label>
-        <InputText class="form-control" @bind-Value="MedicoActual.Especialidad" />
-    </div>
-    <div class="mb-3">
-        <label>Teléfono</label>
-        <InputText class="form-control" @bind-Value="MedicoActual.Telefono" />
-    </div>
-    <button type="submit" class="btn btn-primary">Guardar</button>
-    <button type="button" class="btn btn-secondary" @onclick="CancelarEdicion">Cancelar</button>
-</EditForm>
+<button class="btn btn-success mb-3" @onclick="MostrarModal">Nuevo Médico</button>
 
-<hr />
-
-<table class="table table-bordered">
-    <thead>
-        <tr>
-            <th>Nombre</th>
-            <th>Especialidad</th>
-            <th>Teléfono</th>
-            <th>Acciones</th>
-        </tr>
-    </thead>
-    <tbody>
-        @foreach (var medico in ListaMedicos)
-        {
+@if (medicos.Count == 0)
+{
+    <p>No hay médicos registrados.</p>
+}
+else
+{
+    <table class="table table-striped">
+        <thead>
             <tr>
-                <td>@medico.Nombre</td>
-                <td>@medico.Especialidad</td>
-                <td>@medico.Telefono</td>
-                <td>
-                    <button class="btn btn-warning" @onclick="() => EditarMedico(medico)">Editar</button>
-                    <button class="btn btn-danger" @onclick="() => EliminarMedico(medico.Id)">Eliminar</button>
-                </td>
+                <th>Nombre</th>
+                <th>Especialidad</th>
+                <th>Teléfono</th>
+                <th>Acciones</th>
             </tr>
-        }
-    </tbody>
-</table>
+        </thead>
+        <tbody>
+            @foreach (var medico in medicos)
+            {
+                <tr>
+                    <td>@medico.Nombre</td>
+                    <td>@medico.Especialidad</td>
+                    <td>@medico.Telefono</td>
+                    <td>
+                        <button class="btn btn-sm btn-primary me-1" @onclick="() => EditarMedico(medico)">Editar</button>
+                        <button class="btn btn-sm btn-danger" @onclick="() => EliminarMedico(medico.Id)">Eliminar</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+<!-- Modal -->
+<div class="modal fade @(modalVisible ? "show d-block" : "")" tabindex="-1" style="background-color: rgba(0,0,0,0.4);">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <EditForm Model="@MedicoActual" OnValidSubmit="GuardarMedico">
+                <div class="modal-header">
+                    <h5 class="modal-title">@((MedicoActual.Id == 0) ? "Nuevo Médico" : "Editar Médico")</h5>
+                    <button type="button" class="btn-close" @onclick="CerrarModal"></button>
+                </div>
+                <div class="modal-body">
+                    <DataAnnotationsValidator />
+                    <ValidationSummary />
+
+                    <div class="mb-3">
+                        <label>Nombre</label>
+                        <InputText class="form-control" @bind-Value="MedicoActual.Nombre" />
+                    </div>
+                    <div class="mb-3">
+                        <label>Especialidad</label>
+                        <InputText class="form-control" @bind-Value="MedicoActual.Especialidad" />
+                    </div>
+                    <div class="mb-3">
+                        <label>Teléfono</label>
+                        <InputText class="form-control" @bind-Value="MedicoActual.Telefono" />
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-primary" type="submit">Guardar</button>
+                    <button class="btn btn-secondary" type="button" @onclick="CerrarModal">Cancelar</button>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+</div>
 
 @code {
-    private List<Medico> ListaMedicos = new List<Medico>();
-    private Medico MedicoActual = new Medico();
+    private List<Medico> medicos = new();
+    private Medico MedicoActual = new();
+    private bool modalVisible = false;
 
     protected override async Task OnInitializedAsync()
     {
@@ -61,39 +87,68 @@
 
     private async Task CargarMedicos()
     {
-        ListaMedicos = await CitasFacade.ObtenerMedicos();
+        medicos = await MedicoService.ObtenerMedicos();
     }
 
-    private async Task GuardarMedico()
+    private void MostrarModal()
     {
-        if (MedicoActual.Id == 0)
-            await CitasFacade.AgregarMedico(MedicoActual);
-        else
-            await CitasFacade.EditarMedico(MedicoActual);
-
         MedicoActual = new Medico();
-        await CargarMedicos();
+        modalVisible = true;
     }
 
     private void EditarMedico(Medico medico)
     {
         MedicoActual = new Medico
-            {
-                Id = medico.Id,
-                Nombre = medico.Nombre,
-                Especialidad = medico.Especialidad,
-                Telefono = medico.Telefono
-            };
+        {
+            Id = medico.Id,
+            Nombre = medico.Nombre,
+            Especialidad = medico.Especialidad,
+            Telefono = medico.Telefono
+        };
+        modalVisible = true;
+    }
+
+    private void CerrarModal()
+    {
+        modalVisible = false;
+    }
+
+    private async Task GuardarMedico()
+    {
+        bool exito;
+
+        if (MedicoActual.Id == 0)
+            exito = await MedicoService.AgregarMedico(MedicoActual);
+        else
+            exito = await MedicoService.EditarMedico(MedicoActual);
+
+        if (exito)
+        {
+            await JS.InvokeVoidAsync("alert", "Médico guardado correctamente.");
+            modalVisible = false;
+            await CargarMedicos();
+        }
+        else
+        {
+            await JS.InvokeVoidAsync("alert", "Error al guardar el médico.");
+        }
     }
 
     private async Task EliminarMedico(int id)
     {
-        await CitasFacade.EliminarMedico(id);
-        await CargarMedicos();
-    }
-
-    private void CancelarEdicion()
-    {
-        MedicoActual = new Medico();
+        var confirmar = await JS.InvokeAsync<bool>("confirm", "¿Desea eliminar este médico?");
+        if (confirmar)
+        {
+            var exito = await MedicoService.EliminarMedico(id);
+            if (exito)
+            {
+                await JS.InvokeVoidAsync("alert", "Médico eliminado.");
+                await CargarMedicos();
+            }
+            else
+            {
+                await JS.InvokeVoidAsync("alert", "Error al eliminar el médico.");
+            }
+        }
     }
 }
